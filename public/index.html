@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ระบบบริหารจัดการทรัพย์สินและแจ้งซ่อม (Asset & Maintenance System)</title>
+  
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- SheetJS for Excel (.xlsx) export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased">
+
+  <!-- ========================================================================= -->
+  <!-- 0. LOGIN OVERLAY (Modern Glassmorphic Login) -->
+  <!-- ========================================================================= -->
+  <div id="loginScreen" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6 fade-in">
+      <div class="text-center space-y-2">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+          <i class="fa-solid fa-laptop-code text-2xl"></i>
+        </div>
+        <h2 class="text-xl sm:text-2xl font-bold text-slate-900">ระบบบริหารทรัพย์สิน & แจ้งซ่อม</h2>
+        <p class="text-xs text-slate-500">บริษัท ไอที โซลูชั่น แอนด์ เซอร์วิส จำกัด</p>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="space-y-4 text-xs sm:text-sm">
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">ชื่อผู้ใช้งาน (Username)</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-400"></i>
+            <input type="text" id="loginUsername" required placeholder="เช่น admin, wasin, nutkamon" class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">รหัสผ่าน (Password)</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-400"></i>
+            <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบ
+        </button>
+      </form>
+
+      <!-- Quick Switch / Demo Accounts Helper -->
+      <div class="pt-4 border-t border-slate-100">
+        <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 text-center">แตะเพื่อทดสอบเข้าใช้งานด่วน (Demo Roles):</p>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button type="button" onclick="quickLogin('admin', 'Admin@0000')" class="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl text-left border border-slate-200 transition">
+            <div class="font-bold text-slate-800">👑 Admin (ชลิต)</div>
+            <div class="text-[10px] text-slate-500">สิทธิ์ผู้ดูแลระบบสูงสุด</div>
+          </button>
+          <button type="button" onclick="quickLogin('wasin', 'chin1925')" class="p-2.5 bg-blue-50 hover:bg-blue-100 rounded-xl text-left border border-blue-200 transition">
+            <div class="font-bold text-blue-900">🔧 ช่างวศิน</div>
+            <div class="text-[10px] text-blue-600">สิทธิ์ช่างเทคนิค/ปิดงาน</div>
+          </button>
+          <button type="button" onclick="quickLogin('nutkamon', '9246562')" class="p-2.5 bg-indigo-50 hover:bg-indigo-100 rounded-xl text-left border border-indigo-200 transition">
+            <div class="font-bold text-indigo-900">👩‍💼 ณัฐกมล</div>
+            <div class="text-[10px] text-indigo-600">Admin ผู้จัดการระบบ</div>
+          </button>
+          <button type="button" onclick="quickLogin('user', 'User@1234')" class="p-2.5 bg-amber-50 hover:bg-amber-100 rounded-xl text-left border border-amber-200 transition">
+            <div class="font-bold text-amber-900">👤 พนักงานทั่วไป</div>
+            <div class="text-[10px] text-amber-600">แจ้งซ่อม & ค้นหาของ</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 1. TOP HEADER & NAVIGATION BAR -->
+  <!-- ========================================================================= -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+            <i class="fa-solid fa-server text-lg"></i>
+          </div>
+          <div>
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">ระบบบริหารทรัพย์สิน & แจ้งซ่อม</h1>
+            <p class="text-[11px] text-slate-400">IT Solution & Service Co., Ltd. • v2.0</p>
+          </div>
+        </div>
+
+        <!-- User Info & Actions -->
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex flex-col text-right">
+            <span id="headerUserName" class="text-xs sm:text-sm font-semibold text-slate-800">ชลิต พานเพ็ง</span>
+            <div class="flex items-center gap-1.5 justify-end text-[11px] text-slate-500">
+              <span id="headerUserRole" class="text-blue-600 font-medium">Admin</span>
+              <span>•</span>
+              <span id="headerUserDept">เทคโนโลยี</span>
+            </div>
+          </div>
+
+          <button onclick="handleLogout()" title="ออกจากระบบ" class="w-9 h-9 rounded-xl border border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 text-slate-500 flex items-center justify-center transition shadow-sm">
+            <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-slate-50 border-t border-slate-200 px-4 sm:px-6 lg:px-8 overflow-x-auto">
+      <div class="max-w-7xl mx-auto flex items-center gap-1 sm:gap-2 py-1.5 min-w-max">
+        <button onclick="switchTab('dashboard')" data-tab="dashboard" class="nav-link px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie"></i> แดชบอร์ด
+        </button>
+        <button onclick="switchTab('assets')" data-tab="assets" class="nav-link px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-cubes"></i> รายการทรัพย์สิน
+        </button>
+        <button onclick="switchTab('repairs')" data-tab="repairs" class="nav-link px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-wrench"></i> ระบบแจ้งซ่อม
+        </button>
+        <button onclick="switchTab('reports')" data-tab="reports" class="nav-link px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-file-invoice"></i> รายงานแจ้งซ่อม & ส่งออก
+        </button>
+        <button onclick="switchTab('departments')" data-tab="departments" class="nav-link px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-building"></i> แผนก (${INITIAL_DEPARTMENTS.length})
+        </button>
+        <button onclick="switchTab('users')" data-tab="users" class="nav-link px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-users-gear"></i> ผู้ใช้งานระบบ
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- 2. MAIN CONTENT AREA -->
+  <!-- ========================================================================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 space-y-6">
+
+    <!-- VIEW A: DASHBOARD -->
+    <section id="view-dashboard" class="space-y-6">
+      
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-slate-500 font-medium">ทรัพย์สินทั้งหมด</p>
+              <h3 id="statTotalAssets" class="text-xl sm:text-2xl font-bold text-slate-900 mt-1">0</h3>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
+              <i class="fa-solid fa-cubes"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-2 text-xs text-slate-500 border-t border-slate-100 pt-2">
+            <span>ปกติ: <strong id="statNormalAssets" class="text-emerald-600">0</strong></span>
+            <span>•</span>
+            <span>สำรอง: <strong id="statBackupAssets" class="text-blue-600">0</strong></span>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-slate-500 font-medium">ส่งซ่อม / แจ้งซ่อม</p>
+              <h3 id="statRepairAssets" class="text-xl sm:text-2xl font-bold text-amber-600 mt-1">0</h3>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
+              <i class="fa-solid fa-screwdriver-wrench"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-2 text-xs text-slate-500 border-t border-slate-100 pt-2">
+            <span>รอดำเนินการ: <strong id="statPendingRepairs" class="text-amber-600">0</strong> ใบ</span>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-slate-500 font-medium">ปลดระวาง / ชำรุด</p>
+              <h3 id="statRetiredAssets" class="text-xl sm:text-2xl font-bold text-rose-600 mt-1">0</h3>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl shrink-0">
+              <i class="fa-solid fa-ban"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-2 text-xs text-slate-500 border-t border-slate-100 pt-2">
+            <span>ซ่อมเสร็จแล้ว: <strong id="statCompletedRepairs" class="text-emerald-600">0</strong> ใบ</span>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-slate-500 font-medium">มูลค่าทรัพย์สินตามบันทึก</p>
+              <h3 id="statTotalValue" class="text-lg sm:text-xl font-bold text-slate-900 mt-1">฿0</h3>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+              <i class="fa-solid fa-coins"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-2 text-xs text-slate-500 border-t border-slate-100 pt-2">
+            <span>แจ้งซ่อมสะสม: <strong id="statTotalRepairs" class="text-slate-700">0</strong> รายการ</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-slate-800 text-sm">สัดส่วนตามประเภทอุปกรณ์</h3>
+            <i class="fa-solid fa-desktop text-slate-400"></i>
+          </div>
+          <div class="h-60 relative flex-1 flex items-center justify-center">
+            <canvas id="chartCategory"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-slate-800 text-sm">สัดส่วนตามสถานะการใช้งาน</h3>
+            <i class="fa-solid fa-chart-pie text-slate-400"></i>
+          </div>
+          <div class="h-60 relative flex-1 flex items-center justify-center">
+            <canvas id="chartStatus"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-slate-800 text-sm">แผนกที่ครอบครองอุปกรณ์สูงสุด</h3>
+            <i class="fa-solid fa-chart-bar text-slate-400"></i>
+          </div>
+          <div class="h-60 relative flex-1">
+            <canvas id="chartDepartment"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Recent Repairs List & Quick Actions -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-800 text-sm sm:text-base">รายการแจ้งซ่อมล่าสุด</h3>
+              <p class="text-xs text-slate-400">งานซ่อมและบำรุงรักษาล่าสุดในระบบ</p>
+            </div>
+            <button onclick="switchTab('repairs')" class="text-xs font-semibold text-blue-600 hover:text-blue-700">
+              ดูทั้งหมด <i class="fa-solid fa-arrow-right ml-1"></i>
+            </button>
+          </div>
+
+          <div id="recentRepairsContainer" class="space-y-2.5">
+            <!-- Dynamic -->
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-900 to-indigo-950 p-6 rounded-3xl text-white shadow-xl flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-xl backdrop-blur-md">
+              <i class="fa-solid fa-bolt"></i>
+            </div>
+            <h3 class="text-lg font-bold">เมนูด่วน (Quick Actions)</h3>
+            <p class="text-xs text-blue-200 leading-relaxed">
+              ดำเนินการแจ้งซ่อม ออกรายงาน หรือจัดการทรัพย์สินอุปกรณ์ได้อย่างสะดวกรวดเร็ว
+            </p>
+          </div>
+
+          <div class="space-y-2.5 pt-6">
+            <button onclick="openCreateRepairModal()" class="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-semibold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition">
+              <i class="fa-solid fa-wrench"></i> แจ้งซ่อมอุปกรณ์ใหม่
+            </button>
+            <button onclick="switchTab('reports')" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition">
+              <i class="fa-solid fa-file-invoice"></i> ออกรายงานแจ้งซ่อมประจำเดือน/ปี
+            </button>
+            <button onclick="openAddAssetModal()" class="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 active:scale-[0.99] text-white font-medium rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 border border-white/10 transition">
+              <i class="fa-solid fa-plus"></i> เพิ่มทะเบียนทรัพย์สินใหม่
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- VIEW B: ASSETS MANAGEMENT -->
+    <section id="view-assets" class="hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400"></i>
+          <input type="text" oninput="handleAssetSearch(this.value)" placeholder="ค้นหารหัสทรัพย์สิน, ชื่อ, ยี่ห้อ, รุ่น, Serial Number, ผู้ครอบครอง..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <select id="assetFilterDept" onchange="handleAssetFilterDept(this.value)" class="py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <!-- Populated via JS -->
+          </select>
+
+          <select onchange="handleAssetFilterCategory(this.value)" class="py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="all">ทุกประเภท</option>
+            <option value="Desktop PC">Desktop PC</option>
+            <option value="Notebook">Notebook</option>
+            <option value="Printer">Printer</option>
+            <option value="Server">Server</option>
+          </select>
+
+          <select onchange="handleAssetFilterStatus(this.value)" class="py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="all">ทุกสถานะ</option>
+            <option value="ใช้งานได้ปกติ">ใช้งานได้ปกติ</option>
+            <option value="ส่งซ่อม">ส่งซ่อม</option>
+            <option value="สำรอง">สำรอง</option>
+            <option value="ปลดระวาง/ชำรุด">ปลดระวาง/ชำรุด</option>
+          </select>
+
+          <button onclick="openAddAssetModal()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 shadow-md shadow-blue-500/20 transition">
+            <i class="fa-solid fa-plus"></i> เพิ่มทรัพย์สิน
+          </button>
+        </div>
+
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div class="flex items-center gap-2">
+            <h3 class="font-bold text-slate-800 text-sm sm:text-base">ทะเบียนทรัพย์สินคอมพิวเตอร์และอุปกรณ์</h3>
+            <span id="filteredAssetCount" class="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold text-xs">0 รายการ</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportAssetsToExcel()" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 text-slate-600 rounded-xl text-xs font-medium transition shadow-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-file-excel text-emerald-600"></i> ส่งออก Excel
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/80 text-slate-500 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-200">
+                <th class="py-3 px-3 text-center w-12">#</th>
+                <th class="py-3 px-3">รหัสทรัพย์สิน</th>
+                <th class="py-3 px-3">ชื่อ / สเปก / S/N</th>
+                <th class="py-3 px-3">หมวดหมู่</th>
+                <th class="py-3 px-3">แผนก / สถานที่</th>
+                <th class="py-3 px-3">ผู้ครอบครอง</th>
+                <th class="py-3 px-3 text-center">สถานะ</th>
+                <th class="py-3 px-3 text-right">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="assetsTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- VIEW C: REPAIR SYSTEM (ระบบแจ้งซ่อม) -->
+    <section id="view-repairs" class="hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400"></i>
+          <input type="text" oninput="handleRepairSearch(this.value)" placeholder="ค้นหาเลขที่แจ้งซ่อม, รหัสทรัพย์สิน, อาการเสีย, ผู้แจ้ง, ช่างผู้ซ่อม..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <select onchange="handleRepairFilterStatus(this.value)" class="py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="all">ทุกสถานะงานซ่อม</option>
+            <option value="รอดำเนินการ">รอดำเนินการ</option>
+            <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
+            <option value="ซ่อมเสร็จสิ้น">ซ่อมเสร็จสิ้น</option>
+            <option value="ยกเลิก">ยกเลิก</option>
+          </select>
+
+          <select id="repairFilterDept" onchange="handleRepairFilterDept(this.value)" class="py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <!-- Populated via JS -->
+          </select>
+
+          <button onclick="openCreateRepairModal()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 shadow-md shadow-amber-500/20 transition">
+            <i class="fa-solid fa-plus"></i> แจ้งซ่อมใหม่
+          </button>
+        </div>
+
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div class="flex items-center gap-2">
+            <h3 class="font-bold text-slate-800 text-sm sm:text-base">ทะเบียนประวัติการแจ้งซ่อมและบำรุงรักษา</h3>
+            <span id="filteredRepairCount" class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-xs">0 รายการ</span>
+          </div>
+          <button onclick="switchTab('reports')" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-700 text-slate-600 rounded-xl text-xs font-medium transition shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-chart-column text-blue-600"></i> ออกรายงานสรุปตามช่วงเวลา
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/80 text-slate-500 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-200">
+                <th class="py-3 px-3 text-center w-12">#</th>
+                <th class="py-3 px-3">เลขที่ใบแจ้งซ่อม</th>
+                <th class="py-3 px-3">ทรัพย์สิน</th>
+                <th class="py-3 px-3">อาการเสีย / ปัญหา</th>
+                <th class="py-3 px-3">ผู้แจ้ง / แผนก</th>
+                <th class="py-3 px-3">ช่างผู้รับผิดชอบ</th>
+                <th class="py-3 px-3 text-center">สถานะ</th>
+                <th class="py-3 px-3 text-right">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="repairsTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- VIEW D: ADVANCED REPAIR REPORTS (ระบบออกรีพอร์ตประจำเดือน / ประจำปี / ตามแผนก) -->
+    <section id="view-reports" class="hidden space-y-6">
+      
+      <!-- Filter Card -->
+      <div class="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base sm:text-lg flex items-center gap-2">
+              <i class="fa-solid fa-file-invoice text-blue-600"></i> ระบบออกรายงานการแจ้งซ่อมบำรุงรักษา
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">เลือกเงื่อนไขเพื่อออกรายงานสรุปประจำเดือน, ประจำปี หรือกรองเฉพาะแผนกของผู้แจ้งซ่อม</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="printRepairReportA4()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm transition">
+              <i class="fa-solid fa-print"></i> พิมพ์รายงานสรุป A4
+            </button>
+            <button onclick="exportFilteredReportToExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm transition">
+              <i class="fa-solid fa-file-excel"></i> ส่งออก Excel (.xlsx)
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Controls Form -->
+        <div class="space-y-4 text-xs sm:text-sm">
+          
+          <div>
+            <label class="block font-semibold text-slate-700 mb-2">1. รูปแบบระยะเวลารายงาน (Period Type):</label>
+            <div class="flex items-center gap-4 flex-wrap">
+              <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 hover:bg-blue-50">
+                <input type="radio" name="reportPeriod" value="month" checked onchange="handleReportPeriodTypeChange('month')" class="text-blue-600 focus:ring-blue-500">
+                <span class="font-medium text-slate-800">📅 ประจำเดือน (Monthly)</span>
+              </label>
+              <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 hover:bg-blue-50">
+                <input type="radio" name="reportPeriod" value="year" onchange="handleReportPeriodTypeChange('year')" class="text-blue-600 focus:ring-blue-500">
+                <span class="font-medium text-slate-800">📆 ประจำปี (Annual)</span>
+              </label>
+              <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 hover:bg-blue-50">
+                <input type="radio" name="reportPeriod" value="custom" onchange="handleReportPeriodTypeChange('custom')" class="text-blue-600 focus:ring-blue-500">
+                <span class="font-medium text-slate-800">⏳ กำหนดช่วงวันที่เอง (Custom)</span>
+              </label>
+              <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 hover:bg-blue-50">
+                <input type="radio" name="reportPeriod" value="all" onchange="handleReportPeriodTypeChange('all')" class="text-blue-600 focus:ring-blue-500">
+                <span class="font-medium text-slate-800">🌐 ข้อมูลทั้งหมด (All Time)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-1">
+            
+            <div id="reportMonthBox">
+              <label class="block font-medium text-slate-700 mb-1">เลือกเดือน</label>
+              <select id="reportFilterMonth" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="01">มกราคม (01)</option>
+                <option value="02">กุมภาพันธ์ (02)</option>
+                <option value="03">มีนาคม (03)</option>
+                <option value="04">เมษายน (04)</option>
+                <option value="05">พฤษภาคม (05)</option>
+                <option value="06">มิถุนายน (06)</option>
+                <option value="07">กรกฎาคม (07)</option>
+                <option value="08">สิงหาคม (08)</option>
+                <option value="09">กันยายน (09)</option>
+                <option value="10">ตุลาคม (10)</option>
+                <option value="11">พฤศจิกายน (11)</option>
+                <option value="12">ธันวาคม (12)</option>
+              </select>
+            </div>
+
+            <div id="reportYearBox">
+              <label class="block font-medium text-slate-700 mb-1">เลือกปี พ.ศ. (ค.ศ.)</label>
+              <select id="reportFilterYear" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+
+            <div id="reportCustomDateBox" class="col-span-2 hidden grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-medium text-slate-700 mb-1">ตั้งแต่วันที่</label>
+                <input type="date" id="reportFilterStartDate" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+              </div>
+              <div>
+                <label class="block font-medium text-slate-700 mb-1">ถึงวันที่</label>
+                <input type="date" id="reportFilterEndDate" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">แผนกของผู้แจ้งซ่อม</label>
+              <select id="reportFilterDept" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">สถานะงานซ่อม</label>
+              <select id="reportFilterStatus" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="all">-- ทุกสถานะ --</option>
+                <option value="รอดำเนินการ">รอดำเนินการ</option>
+                <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
+                <option value="ซ่อมเสร็จสิ้น">ซ่อมเสร็จสิ้น</option>
+                <option value="ยกเลิก">ยกเลิก</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div class="pt-2 flex justify-end">
+            <button onclick="generateRepairReport()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-xl font-semibold shadow-md shadow-blue-500/20 flex items-center gap-2 transition">
+              <i class="fa-solid fa-filter"></i> ประมวลผลรายงาน (Generate Report)
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Report Summary KPI Header -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">รวมแจ้งซ่อมในช่วงนี้</p>
+          <h4 id="reportStatTotal" class="text-xl font-bold text-slate-900 mt-1">0</h4>
+          <span class="text-[11px] text-slate-400">รายการ</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">ซ่อมเสร็จสิ้นแล้ว</p>
+          <h4 id="reportStatCompleted" class="text-xl font-bold text-emerald-600 mt-1">0</h4>
+          <span class="text-[11px] text-emerald-600">ปิดงานเรียบร้อย</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">ค้างรอดำเนินการ / กำลังซ่อม</p>
+          <h4 id="reportStatPending" class="text-xl font-bold text-amber-600 mt-1">0</h4>
+          <span class="text-[11px] text-amber-600">อยู่ระหว่างดำเนินการ</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">รวมค่าใช้จ่ายการซ่อม</p>
+          <h4 id="reportStatCost" class="text-xl font-bold text-blue-600 mt-1">฿0</h4>
+          <span class="text-[11px] text-slate-400">ตามรายการที่บันทึก</span>
+        </div>
+
+      </div>
+
+      <!-- Report Data Table -->
+      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        
+        <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-slate-50/50">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-600">ผลการประมวลผลรายงาน:</span>
+            <h4 id="reportScopeTitle" class="font-bold text-slate-800 text-sm sm:text-base">ประจำเดือน ตุลาคม พ.ศ. 2569</h4>
+          </div>
+          <span id="reportDataCount" class="px-3 py-1 rounded-full bg-slate-200 text-slate-700 text-xs font-semibold">พบ 0 รายการ</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-200">
+                <th class="py-3 px-3 text-center w-12">#</th>
+                <th class="py-3 px-3">เลขที่แจ้งซ่อม</th>
+                <th class="py-3 px-3">วันที่แจ้ง</th>
+                <th class="py-3 px-3">ทรัพย์สิน</th>
+                <th class="py-3 px-3">แผนกผู้แจ้ง</th>
+                <th class="py-3 px-3">ผู้แจ้งซ่อม</th>
+                <th class="py-3 px-3">อาการเสีย / ผลการซ่อม</th>
+                <th class="py-3 px-3">ช่างผู้ซ่อม</th>
+                <th class="py-3 px-3 text-center">สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Backup & Data Transfer Section -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div>
+          <h4 class="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+            <i class="fa-solid fa-database text-purple-600"></i> สำรองและกู้คืนฐานข้อมูลระบบ (System Backup & Restore)
+          </h4>
+          <p class="text-xs text-slate-500">สำรองข้อมูลทั้งหมดในระบบ (ทรัพย์สิน, ประวัติงานซ่อม, ผู้ใช้, แผนก) เป็นไฟล์ก้อนเดียวเพื่อถ่ายโอนหรือเก็บรักษา</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+          
+          <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+            <div>
+              <div class="font-bold text-xs text-slate-800">ส่งออก Excel ทรัพย์สินทั้งหมด</div>
+              <div class="text-[11px] text-slate-500">ดาวน์โหลด 86+ เครื่องเป็น .xlsx</div>
+            </div>
+            <button onclick="exportAssetsToExcel()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shrink-0 transition">
+              <i class="fa-solid fa-file-excel mr-1"></i> ดาวน์โหลด
+            </button>
+          </div>
+
+          <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+            <div>
+              <div class="font-bold text-xs text-slate-800">สำรองฐานข้อมูล (Full Backup)</div>
+              <div class="text-[11px] text-slate-500">บันทึกเป็นไฟล์ .json</div>
+            </div>
+            <button onclick="exportDatabaseBackup()" class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shrink-0 transition">
+              <i class="fa-solid fa-cloud-arrow-down mr-1"></i> สำรองไฟล์
+            </button>
+          </div>
+
+          <div class="p-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-between gap-3">
+            <div>
+              <div class="font-bold text-xs text-slate-800">กู้คืนข้อมูล (Restore)</div>
+              <div class="text-[11px] text-slate-500">เลือกไฟล์ .json ที่สำรองไว้</div>
+            </div>
+            <label class="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-medium cursor-pointer shrink-0 transition">
+              <i class="fa-solid fa-upload mr-1"></i> กู้คืน
+              <input type="file" accept=".json" onchange="importDatabaseBackup(event)" class="hidden">
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- VIEW E: DEPARTMENTS -->
+    <section id="view-departments" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-slate-800 text-base">แผนกทั้งหมดในบริษัท</h3>
+          <p class="text-xs text-slate-400">โครงสร้างหน่วยงานตามฐานข้อมูล Excel (23 แผนก)</p>
+        </div>
+        <button onclick="openAddDepartmentModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-sm transition">
+          <i class="fa-solid fa-plus"></i> เพิ่มแผนกใหม่
+        </button>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/80 text-slate-500 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-200">
+                <th class="py-3 px-3 text-center w-16">#</th>
+                <th class="py-3 px-3">รหัสแผนก</th>
+                <th class="py-3 px-3">ชื่อแผนก</th>
+                <th class="py-3 px-3 text-center">จำนวนอุปกรณ์ที่ถือครอง</th>
+                <th class="py-3 px-3 text-center">ประวัติการแจ้งซ่อม</th>
+                <th class="py-3 px-3 text-right">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="departmentsTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW F: USERS MANAGEMENT -->
+    <section id="view-users" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-slate-800 text-base">จัดการผู้ใช้งานและสิทธิ์เข้าถึง (User Accounts)</h3>
+          <p class="text-xs text-slate-400">ควบคุมสิทธิ์ผู้ดูแลระบบ (Admin), ช่างเทคนิค (Technician) และพนักงานทั่วไป</p>
+        </div>
+        <button onclick="openAddUserModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-sm transition">
+          <i class="fa-solid fa-user-plus"></i> เพิ่มผู้ใช้งานใหม่
+        </button>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/80 text-slate-500 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-200">
+                <th class="py-3 px-3 text-center w-16">#</th>
+                <th class="py-3 px-3">User ID</th>
+                <th class="py-3 px-3">Username</th>
+                <th class="py-3 px-3">ชื่อ-นามสกุล</th>
+                <th class="py-3 px-3">สิทธิ์การใช้งาน (Role)</th>
+                <th class="py-3 px-3">สังกัดแผนก</th>
+                <th class="py-3 px-3 text-center">สถานะ</th>
+                <th class="py-3 px-3 text-right">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 3. MODALS -->
+  <!-- ========================================================================= -->
+
+  <!-- MODAL: CAMERA LIVE CAPTURE MODAL -->
+  <div id="cameraModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-5 shadow-2xl border border-slate-100 fade-in space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <i class="fa-solid fa-camera text-blue-600"></i> ถ่ายรูปภาพ (Camera Capture)
+        </h3>
+        <button type="button" onclick="closeCameraModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Live Video View -->
+      <div class="camera-video-container mx-auto">
+        <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center justify-center gap-3 pt-2">
+        <button type="button" onclick="switchCameraFacingMode()" title="สลับกล้องหน้า/หลัง" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-camera-rotate"></i> สลับกล้อง
+        </button>
+        <button type="button" onclick="captureCameraSnapshot()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-blue-500/30 transition">
+          <i class="fa-solid fa-circle-dot text-base text-rose-400"></i> ถ่ายรูปภาพ
+        </button>
+        <button type="button" onclick="closeCameraModal()" class="px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs hover:bg-slate-100">
+          ยกเลิก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 1: ADD / EDIT ASSET MODAL -->
+  <div id="assetModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 my-8 fade-in">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        <h3 id="assetModalTitle" class="text-base sm:text-lg font-bold text-slate-900">เพิ่มทรัพย์สินใหม่</h3>
+        <button onclick="closeAssetModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="assetModalForm" onsubmit="handleAssetFormSubmit(event)" class="space-y-4 text-xs sm:text-sm">
+        <input type="hidden" id="assetModalId">
+        <input type="hidden" id="assetModalGeneratedId">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">รหัสทรัพย์สิน (Asset Code) <span class="text-rose-500">*</span></label>
+            <input type="text" id="assetModalCode" required placeholder="เช่น E680200, N000022" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">ชื่ออุปกรณ์ (Asset Name) <span class="text-rose-500">*</span></label>
+            <input type="text" id="assetModalName" required placeholder="เช่น Lenovo ThinkCentre Neo 50a" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">หมวดหมู่</label>
+            <select id="assetModalCategory" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="Desktop PC">Desktop PC</option>
+              <option value="Notebook">Notebook</option>
+              <option value="Printer">Printer</option>
+              <option value="Server">Server</option>
+              <option value="อื่นๆ">อื่นๆ</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">ยี่ห้อ (Brand)</label>
+            <input type="text" id="assetModalBrand" placeholder="เช่น Lenovo, Dell, HP, OKI" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">รุ่น (Model)</label>
+            <input type="text" id="assetModalModel" placeholder="เช่น 12SD001GTB, DCP-T520W" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Serial Number (S/N)</label>
+            <input type="text" id="assetModalSerial" placeholder="เช่น MP2G51K8" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">สถานะปัจจุบัน</label>
+            <select id="assetModalStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+              <option value="ใช้งานได้ปกติ">ใช้งานได้ปกติ</option>
+              <option value="ส่งซ่อม">ส่งซ่อม</option>
+              <option value="สำรอง">สำรอง</option>
+              <option value="ปลดระวาง/ชำรุด">ปลดระวาง/ชำรุด</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">แผนกที่ใช้งาน</label>
+            <select id="assetModalDept" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <!-- Populated via JS -->
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">สถานที่ตั้ง / จุดวาง</label>
+            <input type="text" id="assetModalLocation" placeholder="เช่น office ชั้น1, ตึก35ชั้น3" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">ผู้ครอบครอง / ผู้รับผิดชอบ</label>
+            <input type="text" id="assetModalAssignedUser" placeholder="เช่น คุณสมศรี, ITSN-WASIN" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">ราคาที่จัดซื้อ (บาท)</label>
+            <input type="number" id="assetModalPrice" step="any" placeholder="0" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">วันที่จัดซื้อ</label>
+            <input type="date" id="assetModalPurchaseDate" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <!-- Photo Capture / Upload Section -->
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <label class="block font-semibold text-slate-700 text-xs">รูปภาพอุปกรณ์ (กดถ่ายรูป หรือ เลือกรูปจากเครื่อง)</label>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" onclick="openCameraModal('assetModalImageUrl', 'assetModalImagePreview')" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+              <i class="fa-solid fa-camera"></i> กดถ่ายรูปภาพ
+            </button>
+            <label class="px-3 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-sm transition">
+              <i class="fa-solid fa-image text-slate-500"></i> เลือกรูปจากเครื่อง
+              <input type="file" accept="image/*" capture="environment" onchange="handleImageFileInput(event, 'assetModalImageUrl', 'assetModalImagePreview')" class="hidden">
+            </label>
+            <input type="hidden" id="assetModalImageUrl">
+          </div>
+          <div id="assetModalImagePreview"></div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">สเปก / หมายเหตุเพิ่มเติม</label>
+          <textarea id="assetModalNotes" rows="2" placeholder="CPU, RAM, Storage, Windows version..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <button type="button" onclick="closeAssetModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-md shadow-blue-500/20">บันทึกข้อมูล</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: VIEW ASSET DETAILS & MAINTENANCE HISTORY -->
+  <div id="viewAssetModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-slate-100 my-8 fade-in space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 id="viewAssetCode" class="text-lg sm:text-xl font-bold text-slate-900">E680200</h3>
+            <span id="viewAssetStatus" class="px-3 py-0.5 rounded-full text-xs font-semibold">ใช้งานได้ปกติ</span>
+          </div>
+          <p id="viewAssetName" class="text-xs text-slate-500 font-medium">Lenovo ThinkCentre Neo 50a</p>
+        </div>
+        <button onclick="closeViewAssetModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="space-y-4">
+          <div id="viewAssetImageContainer"></div>
+          <div class="space-y-2">
+            <button id="viewAssetReportBtn" class="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition">
+              <i class="fa-solid fa-wrench"></i> แจ้งซ่อมอุปกรณ์นี้
+            </button>
+            <button id="viewAssetPrintLabelBtn" class="w-full py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 font-medium rounded-xl text-xs flex items-center justify-center gap-2 border border-purple-200 transition">
+              <i class="fa-solid fa-qrcode"></i> พิมพ์ป้าย QR Code
+            </button>
+          </div>
+        </div>
+
+        <div class="md:col-span-2 space-y-4">
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <span class="text-slate-400 block">System ID:</span>
+              <span id="viewAssetId" class="font-mono font-medium text-slate-700">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">หมวดหมู่:</span>
+              <span id="viewAssetCategory" class="font-semibold text-slate-800">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">ยี่ห้อ / รุ่น:</span>
+              <span class="font-medium text-slate-800"><span id="viewAssetBrand">-</span> / <span id="viewAssetModel">-</span></span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">Serial Number:</span>
+              <span id="viewAssetSerial" class="font-mono text-slate-800">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">แผนกผู้ดูแล:</span>
+              <span id="viewAssetDept" class="font-medium text-slate-800">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">สถานที่ตั้ง:</span>
+              <span id="viewAssetLocation" class="text-slate-800">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">ผู้ครอบครอง:</span>
+              <span id="viewAssetUser" class="font-medium text-slate-800">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">ราคาจัดซื้อ:</span>
+              <span id="viewAssetPrice" class="font-medium text-emerald-700">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">วันที่จัดซื้อ:</span>
+              <span id="viewAssetPurchaseDate" class="text-slate-700">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">หมายเหตุ / สเปก:</span>
+              <span id="viewAssetNotes" class="text-slate-700">-</span>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-slate-800 text-xs mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> ประวัติการแจ้งซ่อมของอุปกรณ์นี้
+            </h4>
+            <div id="viewAssetRepairHistory" class="max-h-52 overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-3 border-t border-slate-100">
+        <button onclick="closeViewAssetModal()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">ปิดหน้าต่าง</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: CREATE REPAIR TICKET MODAL -->
+  <div id="createRepairModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 my-8 fade-in">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-900">เปิดใบแจ้งซ่อมอุปกรณ์ (New Repair Ticket)</h3>
+          <p class="text-xs text-slate-400">กรอกข้อมูลอาการเสียเพื่อส่งต่อให้ทีมเทคนิคดำเนินการ</p>
+        </div>
+        <button onclick="closeCreateRepairModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="repairModalForm" onsubmit="handleCreateRepairSubmit(event)" class="space-y-4 text-xs sm:text-sm">
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">เลขที่ใบแจ้งซ่อม</label>
+            <input type="text" id="repairModalCode" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl font-bold font-mono text-blue-600">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">วันที่แจ้ง</label>
+            <input type="date" id="repairModalDate" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">เลือกทรัพย์สินในระบบ (ดึงข้อมูลอัตโนมัติ)</label>
+          <select id="repairModalAssetSelect" onchange="handleAssetSelectChange(this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+            <!-- Dynamic -->
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">รหัสทรัพย์สิน <span class="text-rose-500">*</span></label>
+            <input type="text" id="repairModalAssetCode" required placeholder="เช่น E680200" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">ชื่ออุปกรณ์</label>
+            <input type="text" id="repairModalAssetName" placeholder="เช่น Lenovo ThinkCentre" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">ชื่อผู้แจ้งซ่อม <span class="text-rose-500">*</span></label>
+            <input type="text" id="repairModalReporter" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">แผนกของผู้แจ้ง</label>
+            <select id="repairModalDept" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+              <!-- Dynamic -->
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">หัวข้ออาการเสีย / ปัญหาที่พบ <span class="text-rose-500">*</span></label>
+          <input type="text" id="repairModalTitle" required placeholder="เช่น เปิดเครื่องไม่ติด, ปริ้นท์ไม่ออก, จอฟ้า, เครื่องดับเอง" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">รายละเอียดเพิ่มเติม</label>
+          <textarea id="repairModalDesc" rows="2" placeholder="ระบุสิ่งที่เกิดขึ้น หรือรหัส Error..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+
+        <!-- Before Repair Photo Capture / Upload -->
+        <div class="p-3 bg-amber-50/60 rounded-2xl border border-amber-200/60 space-y-2">
+          <label class="block font-semibold text-amber-900 text-xs">รูปภาพก่อนซ่อม (กดถ่ายรูป หรือ เลือกรูปจากเครื่อง)</label>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" onclick="openCameraModal('repairModalBeforeImage', 'repairModalBeforeImagePreview')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+              <i class="fa-solid fa-camera"></i> กดถ่ายรูปอาการเสีย
+            </button>
+            <label class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-sm transition">
+              <i class="fa-solid fa-image text-slate-500"></i> เลือกรูปจากเครื่อง
+              <input type="file" accept="image/*" capture="environment" onchange="handleImageFileInput(event, 'repairModalBeforeImage', 'repairModalBeforeImagePreview')" class="hidden">
+            </label>
+            <input type="hidden" id="repairModalBeforeImage">
+          </div>
+          <div id="repairModalBeforeImagePreview"></div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <button type="button" onclick="closeCreateRepairModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold shadow-md shadow-amber-500/20">บันทึกส่งใบแจ้งซ่อม</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: TECHNICIAN ACTION & CLOSE WORK ORDER -->
+  <div id="technicianActionModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 my-8 fade-in">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-900">จัดการงานซ่อม / บันทึกผลการซ่อม</h3>
+          <p class="text-xs text-slate-400">สำหรับช่างเทคนิคและทีม IT บันทึกการแก้ไข</p>
+        </div>
+        <button onclick="closeTechnicianActionModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="technicianActionForm" onsubmit="handleTechnicianActionSubmit(event)" class="space-y-4 text-xs sm:text-sm">
+        <input type="hidden" id="techActionRepairId">
+
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1">
+          <div class="flex justify-between">
+            <span class="text-slate-500">เลขที่แจ้งซ่อม:</span>
+            <span id="techActionCode" class="font-bold text-blue-600">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">อุปกรณ์:</span>
+            <span id="techActionAsset" class="font-medium text-slate-800">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">อาการที่แจ้ง:</span>
+            <span id="techActionProblem" class="font-semibold text-amber-700">-</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">สถานะงานซ่อม</label>
+            <select id="techActionStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold">
+              <option value="รอดำเนินการ">รอดำเนินการ</option>
+              <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
+              <option value="ซ่อมเสร็จสิ้น">ซ่อมเสร็จสิ้น (ปิดงาน)</option>
+              <option value="ยกเลิก">ยกเลิก</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">ช่างผู้รับผิดชอบ</label>
+            <input type="text" id="techActionTechName" placeholder="เช่น ชลิต, วศิน" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">วันที่เริ่มดำเนินการ</label>
+            <input type="date" id="techActionDate" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">วันที่ซ่อมเสร็จสิ้น</label>
+            <input type="date" id="techActionCompletedDate" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">วิธีการแก้ไข / อะไหล่ที่เปลี่ยน <span class="text-rose-500">*</span></label>
+          <textarea id="techActionDetails" rows="2" required placeholder="เช่น ลง Windows ใหม่, เปลี่ยนสาย LAN, ทำความสะอาดพัดลม, เคลมอะไหล่..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">ค่าใช้จ่าย / ค่าอะไหล่ (บาท)</label>
+          <input type="number" id="techActionCost" step="any" placeholder="0" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+        </div>
+
+        <!-- After Repair Photo Capture / Upload -->
+        <div class="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200/60 space-y-2">
+          <label class="block font-semibold text-emerald-900 text-xs">รูปภาพหลังซ่อมเสร็จ (กดถ่ายรูป หรือ เลือกรูปจากเครื่อง)</label>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" onclick="openCameraModal('techActionAfterImage', 'techActionAfterImagePreview')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+              <i class="fa-solid fa-camera"></i> กดถ่ายรูปผลงานหลังซ่อม
+            </button>
+            <label class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-sm transition">
+              <i class="fa-solid fa-image text-slate-500"></i> เลือกรูปจากเครื่อง
+              <input type="file" accept="image/*" capture="environment" onchange="handleImageFileInput(event, 'techActionAfterImage', 'techActionAfterImagePreview')" class="hidden">
+            </label>
+            <input type="hidden" id="techActionAfterImage">
+          </div>
+          <div id="techActionAfterImagePreview"></div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <button type="button" onclick="closeTechnicianActionModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-md shadow-blue-500/20">บันทึกผลการซ่อม</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 5: REPAIR DETAILS VIEW MODAL -->
+  <div id="repairDetailsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 my-8 fade-in space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 id="detailRepCode" class="text-base sm:text-lg font-bold text-slate-900">RP-2026-0001</h3>
+            <span id="detailRepStatus" class="px-2.5 py-0.5 rounded-full text-xs font-semibold">ซ่อมเสร็จสิ้น</span>
+          </div>
+          <p class="text-xs text-slate-400">รายละเอียดใบแจ้งซ่อมและผลการปฏิบัติงาน</p>
+        </div>
+        <button onclick="closeRepairDetailsModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs sm:text-sm">
+        
+        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 grid grid-cols-2 gap-3 text-xs">
+          <div>
+            <span class="text-slate-400 block">รหัสทรัพย์สิน:</span>
+            <span id="detailRepAssetCode" class="font-bold text-blue-600">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block">ชื่ออุปกรณ์:</span>
+            <span id="detailRepAssetName" class="font-medium text-slate-800">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block">ผู้แจ้งซ่อม:</span>
+            <span id="detailRepReporter" class="font-medium text-slate-800">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block">แผนก:</span>
+            <span id="detailRepDept" class="text-slate-800">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block">วันที่แจ้งซ่อม:</span>
+            <span id="detailRepDate" class="text-slate-700">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block">ช่างผู้รับผิดชอบ:</span>
+            <span id="detailRepTech" class="font-semibold text-slate-800">-</span>
+          </div>
+        </div>
+
+        <div class="p-3 bg-amber-50/60 rounded-2xl border border-amber-200/60">
+          <div class="font-bold text-amber-900 text-xs mb-1">ปัญหาที่แจ้ง:</div>
+          <div id="detailRepTitle" class="font-semibold text-slate-900">เปิดPDFแล้วเครื่องค้าง</div>
+          <div id="detailRepDesc" class="text-xs text-slate-600 mt-1">ไม่สามารถปิดได้</div>
+        </div>
+
+        <div class="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200/60">
+          <div class="font-bold text-emerald-900 text-xs mb-1">การแก้ไขและผลการซ่อม:</div>
+          <div id="detailRepDetails" class="font-medium text-slate-900">อัปเดตเครื่องและลงโปรแกรมใหม่</div>
+          <div class="flex items-center gap-4 text-xs text-slate-500 mt-2">
+            <span>วันเริ่มซ่อม: <strong id="detailRepRepairDate" class="text-slate-700">-</strong></span>
+            <span>วันซ่อมเสร็จ: <strong id="detailRepCompletedDate" class="text-emerald-700">-</strong></span>
+            <span>ค่าใช้จ่าย: <strong id="detailRepCost" class="text-slate-700">฿0</strong></span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <div>
+            <div class="text-[11px] font-semibold text-slate-500 mb-1">รูปภาพก่อนซ่อม</div>
+            <div id="detailRepBeforeImg"></div>
+          </div>
+          <div>
+            <div class="text-[11px] font-semibold text-slate-500 mb-1">รูปภาพหลังซ่อม</div>
+            <div id="detailRepAfterImg"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+        <button id="detailRepPrintBtn" class="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-print"></i> พิมพ์ใบแจ้งซ่อม A4
+        </button>
+        <button onclick="closeRepairDetailsModal()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">ปิดหน้าต่าง</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL 6: PRINT ASSET LABEL / QR CODE MODAL -->
+  <div id="printLabelModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 fade-in space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-900 text-base">พิมพ์ป้ายทรัพย์สิน & QR Code</h3>
+        <button onclick="closePrintLabelModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="printableLabelCard" class="p-4 bg-white border-2 border-slate-800 rounded-2xl flex items-center gap-4 shadow-sm">
+        <div class="w-24 h-24 shrink-0 bg-slate-50 border border-slate-200 rounded-xl p-1 flex items-center justify-center">
+          <img id="labelQrImage" alt="QR Code" class="w-full h-full object-contain">
+        </div>
+        <div class="flex-1 space-y-1">
+          <div id="labelCompanyName" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">บริษัท ไอที โซลูชั่น แอนด์ เซอร์วิส จำกัด</div>
+          <div id="labelAssetCode" class="text-base sm:text-lg font-black text-slate-900 leading-tight">E680200</div>
+          <div id="labelAssetName" class="text-xs font-semibold text-slate-700 truncate">Lenovo ThinkCentre Neo</div>
+          <div class="text-[10px] text-slate-500">
+            <div>แผนก: <strong id="labelAssetDept" class="text-slate-800">QA อบแห้ง</strong></div>
+            <div id="labelAssetSerial" class="font-mono text-slate-600"></div>
+            <div>ผู้ครอบครอง: <span id="labelAssetUser">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button type="button" onclick="closePrintLabelModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs hover:bg-slate-100">ปิด</button>
+        <button type="button" onclick="printAssetLabel()" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-purple-500/20">
+          <i class="fa-solid fa-print"></i> สั่งพิมพ์ป้าย
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: ADD / EDIT USER MODAL -->
+  <div id="userModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 fade-in space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 id="userModalTitle" class="font-bold text-slate-900 text-base">เพิ่มผู้ใช้งานใหม่</h3>
+        <button onclick="closeUserModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="userModalForm" onsubmit="handleUserFormSubmit(event)" class="space-y-3 text-xs sm:text-sm">
+        <input type="hidden" id="userModalId">
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Username <span class="text-rose-500">*</span></label>
+          <input type="text" id="userModalUsername" required placeholder="เช่น wasin, employee1" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">รหัสผ่าน (Password) <span class="text-rose-500">*</span></label>
+          <input type="password" id="userModalPassword" required placeholder="••••••••" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">ชื่อ-นามสกุล <span class="text-rose-500">*</span></label>
+          <input type="text" id="userModalFullName" required placeholder="เช่น นายวศิน ภรินทนันท์" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">สิทธิ์การใช้งาน (Role)</label>
+            <select id="userModalRole" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium">
+              <option value="user">พนักงานทั่วไป (User)</option>
+              <option value="technician">ช่างเทคนิค/IT (Technician)</option>
+              <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">สถานะ</label>
+            <select id="userModalStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+              <option value="active">เปิดใช้งาน (Active)</option>
+              <option value="inactive">ปิดใช้งาน (Inactive)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">แผนก</label>
+          <select id="userModalDept" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+            <!-- Dynamic -->
+          </select>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeUserModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs hover:bg-slate-100">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-blue-500/20">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hidden Container for Printable A4 Documents -->
+  <div id="printableArea"></div>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
