@@ -11,7 +11,8 @@ const STORAGE_KEYS = {
   REPAIRS: 'ams_repairs_data',
   DEPARTMENTS: 'ams_departments_data',
   SETTINGS: 'ams_settings_data',
-  CURRENT_USER: 'ams_current_user'
+  CURRENT_USER: 'ams_current_user',
+  GOOGLE_SHEET_URL: 'ams_google_sheet_url'
 };
 
 // Global App State
@@ -22,6 +23,9 @@ let appState = {
   repairs: [],
   departments: [],
   settings: {},
+  googleSheetUrl: '',
+  isCloudConnected: false,
+  isSyncing: false,
   currentTab: 'dashboard',
   assetFilter: {
     search: '',
@@ -80,6 +84,237 @@ function initDatabase() {
   const storedSession = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
   if (storedSession) {
     appState.currentUser = JSON.parse(storedSession);
+  }
+
+  // Load Google Sheet URL
+  const storedUrl = localStorage.getItem(STORAGE_KEYS.GOOGLE_SHEET_URL);
+  if (storedUrl) {
+    appState.googleSheetUrl = storedUrl.trim();
+    appState.isCloudConnected = true;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GOOGLE SHEETS CLOUD SYNC & BACKEND
+// ---------------------------------------------------------------------------
+
+async function syncWithGoogleSheet(showToast = true) {
+  if (!appState.googleSheetUrl) return;
+
+  appState.isSyncing = true;
+  updateCloudStatusBadge();
+
+  try {
+    const res = await fetch(appState.googleSheetUrl + '?t=' + new Date().getTime(), {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    const json = await res.json();
+
+    if (json.status === 'success' && json.data) {
+      if (Array.isArray(json.data.assets) && json.data.assets.length > 0) {
+        appState.assets = json.data.assets;
+        saveData('assets');
+      }
+      if (Array.isArray(json.data.repairs)) {
+        appState.repairs = json.data.repairs;
+        saveData('repairs');
+      }
+      if (Array.isArray(json.data.departments) && json.data.departments.length > 0) {
+        appState.departments = json.data.departments;
+        saveData('departments');
+      }
+      if (Array.isArray(json.data.users) && json.data.users.length > 0) {
+        appState.users = json.data.users;
+        saveData('users');
+      }
+      if (json.data.settings) {
+        appState.settings = Object.assign(appState.settings, json.data.settings);
+        saveData('settings');
+      }
+
+      appState.isCloudConnected = true;
+      populateDepartmentSelects();
+      
+      // Refresh current view
+      if (appState.currentTab === 'dashboard') renderDashboard();
+      if (appState.currentTab === 'assets') renderAssetsTable();
+      if (appState.currentTab === 'repairs') renderRepairsTable();
+      if (appState.currentTab === 'reports') generateRepairReport();
+
+      if (showToast) {
+        Swal.fire({
+          icon: 'success',
+          title: 'ซิงค์ข้อมูลสำเร็จ',
+          text: 'ดึงข้อมูลล่าสุดจาก Google Sheets เรียบร้อยแล้ว',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Google Sheets sync warning:', err);
+    if (showToast) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'เชื่อมต่อ Google Sheets ไม่สำเร็จ',
+        text: 'ไม่สามารถดึงข้อมูลได้ ระบบจะใช้ข้อมูลในเครื่อง (LocalStorage) แทน: ' + err.message
+      });
+    }
+  } finally {
+    appState.isSyncing = false;
+    updateCloudStatusBadge();
+  }
+}
+
+async function sendToCloud(action, payload) {
+  if (!appState.googleSheetUrl) return;
+
+  try {
+    // Send using text/plain to avoid CORS preflight options
+    await fetch(appState.googleSheetUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify({ action, payload })
+    });
+  } catch (err) {
+    console.warn('Background Cloud Sync error:', err);
+  }
+}
+
+function openGoogleSheetSettingsModal() {
+  document.getElementById('googleSheetUrlInput').value = appState.googleSheetUrl || '';
+  document.getElementById('googleSheetModal').classList.remove('hidden');
+}
+
+function closeGoogleSheetSettingsModal() {
+  document.getElementById('googleSheetModal').classList.add('hidden');
+}
+
+async function saveGoogleSheetUrl() {
+  const url = document.getElementById('googleSheetUrlInput').value.trim();
+  if (!url) {
+    Swal.fire({
+      title: 'ลบการเชื่อมต่อ Google Sheets?',
+      text: 'ระบบจะกลับไปทำงานในโหมดจัดเก็บในเครื่อง (LocalStorage)',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'ใช่, ตัดการเชื่อมต่อ',
+      cancelButtonText: 'ยกเลิก'
+    }).then(result => {
+      if (result.isConfirmed) {
+        appState.googleSheetUrl = '';
+        appState.isCloudConnected = false;
+        localStorage.removeItem(STORAGE_KEYS.GOOGLE_SHEET_URL);
+        updateCloudStatusBadge();
+        closeGoogleSheetSettingsModal();
+        Swal.fire('สำเร็จ', 'ตัดการเชื่อมต่อแล้ว', 'success');
+      }
+    });
+    return;
+  }
+
+  if (!url.startsWith('https://script.google.com/macros/s/')) {
+    Swal.fire('URL ไม่ถูกต้อง', 'URL ของ Google Apps Script ต้องขึ้นต้นด้วย https://script.google.com/macros/s/.../exec', 'warning');
+    return;
+  }
+
+  appState.googleSheetUrl = url;
+  localStorage.setItem(STORAGE_KEYS.GOOGLE_SHEET_URL, url);
+  appState.isCloudConnected = true;
+  updateCloudStatusBadge();
+
+  closeGoogleSheetSettingsModal();
+
+  Swal.fire({
+    title: 'กำลังเชื่อมต่อและดึงข้อมูล...',
+    text: 'กรุณารอสักครู่',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+      syncWithGoogleSheet(true);
+    }
+  });
+}
+
+// Bulk Upload Initial Data to Google Sheet
+function uploadAllToGoogleSheet() {
+  const inputVal = document.getElementById('googleSheetUrlInput')?.value.trim();
+  const url = inputVal || appState.googleSheetUrl;
+
+  if (!url) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'แจ้งเตือน',
+      text: 'กรุณานำ Web App URL ที่ได้จาก Google Apps Script มาวางในช่อง "Google Apps Script Web App URL:" ด้านบนก่อนครับ'
+    });
+    return;
+  }
+
+  // Auto save URL if not yet saved
+  appState.googleSheetUrl = url;
+  localStorage.setItem(STORAGE_KEYS.GOOGLE_SHEET_URL, url);
+  appState.isCloudConnected = true;
+  updateCloudStatusBadge();
+
+  Swal.fire({
+    title: 'ส่งข้อมูลขึ้น Google Sheets?',
+    text: `ระบบจะส่งทรัพย์สินทั้งหมด (${appState.assets.length} เครื่อง), ประวัติงานซ่อม, แผนก, และผู้ใช้ ขึ้นไปบันทึกบน Google Sheets ของคุณ`,
+    icon: 'info',
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันส่งข้อมูล',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#2563eb'
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      Swal.fire({
+        title: 'กำลังส่งข้อมูลขึ้น Google Sheets...',
+        text: 'กรุณารอสักครู่ ประมาณ 3-5 วินาที',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      try {
+        await sendToCloud('seedDatabase', {
+          assets: appState.assets,
+          repairs: appState.repairs,
+          users: appState.users,
+          departments: appState.departments,
+          settings: appState.settings
+        });
+
+        setTimeout(() => {
+          Swal.fire({
+            icon: 'success',
+            title: 'ส่งข้อมูลขึ้น Google Sheets เรียบร้อยแล้ว!',
+            text: 'เปิดดูในไฟล์ Google Sheets ของคุณได้ทันทีครับ',
+            confirmButtonText: 'ตกลง'
+          });
+        }, 1500);
+
+      } catch (err) {
+        Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+      }
+    }
+  });
+}
+
+function updateCloudStatusBadge() {
+  const badge = document.getElementById('headerCloudBadge');
+  if (!badge) return;
+
+  if (appState.isSyncing) {
+    badge.className = 'px-2.5 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold flex items-center gap-1.5 transition';
+    badge.innerHTML = `<i class="fa-solid fa-rotate fa-spin text-amber-600"></i> <span class="hidden sm:inline">กำลังซิงค์...</span>`;
+  } else if (appState.isCloudConnected && appState.googleSheetUrl) {
+    badge.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer';
+    badge.innerHTML = `<i class="fa-solid fa-cloud text-emerald-600"></i> <span class="hidden sm:inline">Google Sheets:</span> ออนไลน์`;
+  } else {
+    badge.className = 'px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer';
+    badge.innerHTML = `<i class="fa-solid fa-link text-slate-400"></i> <span class="hidden sm:inline">เชื่อมต่อ</span> Sheets`;
   }
 }
 
@@ -419,6 +654,7 @@ function renderApp() {
   }
 
   populateDepartmentSelects();
+  updateCloudStatusBadge();
   switchTab(appState.currentTab || 'dashboard');
 }
 
@@ -870,6 +1106,7 @@ function handleAssetFormSubmit(event) {
   }
 
   saveData('assets');
+  sendToCloud('saveAsset', assetData);
   closeAssetModal();
   renderAssetsTable();
   if (appState.currentTab === 'dashboard') renderDashboard();
@@ -899,6 +1136,7 @@ function deleteAsset(id) {
     if (result.isConfirmed) {
       appState.assets = appState.assets.filter(a => a.id !== id);
       saveData('assets');
+      sendToCloud('deleteAsset', { id: id });
       renderAssetsTable();
       if (appState.currentTab === 'dashboard') renderDashboard();
       Swal.fire('ลบสำเร็จ', 'ลบทรัพย์สินเรียบร้อยแล้ว', 'success');
@@ -1252,6 +1490,7 @@ function handleCreateRepairSubmit(event) {
   }
 
   saveData('repairs');
+  sendToCloud('saveRepair', newTicket);
   closeCreateRepairModal();
   renderRepairsTable();
   if (appState.currentTab === 'dashboard') renderDashboard();
@@ -1323,6 +1562,7 @@ function handleTechnicianActionSubmit(event) {
   }
 
   saveData('repairs');
+  sendToCloud('saveRepair', repair);
   closeTechnicianActionModal();
   renderRepairsTable();
   if (appState.currentTab === 'dashboard') renderDashboard();
@@ -1850,12 +2090,14 @@ function openAddDepartmentModal() {
   }).then((result) => {
     if (result.isConfirmed) {
       const nextId = 'D' + (appState.departments.length + 1).toString().padStart(3, '0');
-      appState.departments.push({
+      const newDept = {
         id: nextId,
         name: result.value,
         createdAt: new Date().toISOString()
-      });
+      };
+      appState.departments.push(newDept);
       saveData('departments');
+      sendToCloud('saveDepartment', newDept);
       populateDepartmentSelects();
       renderDepartmentsTable();
       Swal.fire('สำเร็จ', `เพิ่มแผนก "${result.value}" เรียบร้อยแล้ว`, 'success');
@@ -1884,6 +2126,7 @@ function editDepartment(id) {
     if (result.isConfirmed) {
       dept.name = result.value;
       saveData('departments');
+      sendToCloud('saveDepartment', dept);
       populateDepartmentSelects();
       renderDepartmentsTable();
       Swal.fire('สำเร็จ', 'แก้ไขชื่อแผนกเรียบร้อยแล้ว', 'success');
@@ -1978,6 +2221,7 @@ function handleUserFormSubmit(event) {
       user.role = role;
       user.department = department;
       user.status = status;
+      sendToCloud('saveUser', user);
     }
   } else {
     if (appState.users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
@@ -1996,6 +2240,7 @@ function handleUserFormSubmit(event) {
       createdAt: new Date().toISOString()
     };
     appState.users.push(newUser);
+    sendToCloud('saveUser', newUser);
   }
 
   saveData('users');
@@ -2144,4 +2389,7 @@ function importDatabaseBackup(event) {
 document.addEventListener('DOMContentLoaded', () => {
   initDatabase();
   renderApp();
+  if (appState.googleSheetUrl) {
+    syncWithGoogleSheet(false);
+  }
 });
